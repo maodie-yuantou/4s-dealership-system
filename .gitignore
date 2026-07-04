@@ -1,0 +1,39 @@
+# Maven
+target/
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# Upload files
+uploads/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker volumes
+mysql-data/
+redis-data/
+minio-data/
+
+# Temp
+test_*.png

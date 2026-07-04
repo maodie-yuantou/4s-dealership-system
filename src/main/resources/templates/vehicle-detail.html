@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${vehicle.brand + ' ' + vehicle.model}">车型详情 - 润达4S店</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments/header :: header"></div>
+
+<div class="container my-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">首页</a></li>
+            <li class="breadcrumb-item"><a href="/vehicles">车型展示</a></li>
+            <li class="breadcrumb-item active" th:text="${vehicle.brand + ' ' + vehicle.model}">车型</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 th:text="${vehicle.brand + ' ' + vehicle.model}">品牌 型号</h2>
+                    <span class="badge bg-primary mb-3" th:text="${vehicle.type}">轿车</span>
+                    <span class="badge bg-success mb-3 ms-1" th:if="${vehicle.status == 'ON_SALE'}">在售</span>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">年份</small>
+                            <p th:text="${vehicle.year}">2026</p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">价格</small>
+                            <p class="price"><small>¥</small><span th:text="${#numbers.formatDecimal(vehicle.price, 0, 2)}">0</span><small> 万</small></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">发动机</small>
+                            <p th:text="${vehicle.engine}">1.5T</p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">变速箱</small>
+                            <p th:text="${vehicle.transmission}">自动</p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">燃油类型</small>
+                            <p th:text="${vehicle.fuelType}">汽油</p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">颜色</small>
+                            <p th:text="${vehicle.color}">白色</p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <small class="text-muted">库存</small>
+                            <p th:text="${vehicle.stock}">1 辆</p>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">车辆描述</small>
+                        <p th:text="${vehicle.description}">暂无描述</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h5>预约看车</h5>
+                    <form id="appointmentForm" th:if="${session.user != null}">
+                        <input type="hidden" name="vehicleId" th:value="${vehicle.id}">
+                        <div class="mb-3">
+                            <label class="form-label">预约时间</label>
+                            <input type="datetime-local" name="appointmentTime" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">目的</label>
+                            <select name="purpose" class="form-select">
+                                <option value="TEST_DRIVE">试驾</option>
+                                <option value="CONSULTATION">到店咨询</option>
+                                <option value="MAINTENANCE">保养维修</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">备注</label>
+                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">提交预约</button>
+                    </form>
+                    <div th:if="${session.user == null}" class="text-center">
+                        <p class="text-muted">请先登录后预约</p>
+                        <a href="/login" class="btn btn-primary">去登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments/footer :: footer"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('appointmentForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        vehicleId: parseInt(e.target.vehicleId.value),
+        appointmentTime: e.target.appointmentTime.value,
+        purpose: e.target.purpose.value,
+        notes: e.target.notes.value
+    };
+    const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.code === 200) {
+        alert('预约成功！');
+        e.target.reset();
+    } else {
+        alert(result.message);
+    }
+});
+</script>
+</body>
+</html>
