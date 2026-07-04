@@ -25,7 +25,9 @@ public class AiChatService {
     private final CsTicketMapper ticketMapper;
     private final CrmCustomerMapper customerMapper;
 
-    private static final String DEEPSEEK_API_KEY = "sk-5034a2b8c70d4465b00e08198bcf8007";
+    private static final String DEEPSEEK_API_KEY = System.getenv("DEEPSEEK_API_KEY") != null
+        ? System.getenv("DEEPSEEK_API_KEY")
+        : "your-deepseek-api-key";
     private static final String DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
     private static final String DEEPSEEK_MODEL = "deepseek-chat";
 

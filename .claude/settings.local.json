@@ -118,7 +118,8 @@
       "PowerShell($r = try { Invoke-WebRequest -Uri \"http://localhost:5174/src/views/Home.vue\" -UseBasicParsing } catch { Write-Output \"Error: $\\($_.Exception.Message\\)\" }; if \\($r\\) { $r.Content.Substring\\(0, 200\\) })",
       "PowerShell($r = try { Invoke-WebRequest -Uri \"http://localhost:5174/src/views/Login.vue\" -UseBasicParsing } catch { Write-Output \"Error\" }; if \\($r\\) { Write-Output \"OK: $\\($r.StatusCode\\)\" })",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:9000/4s-images/avatars/8c7c8d3a-1bed-4306-aeef-1529ed3fadf0.png\" -UseBasicParsing | Select-Object StatusCode,ContentLength)",
-      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:8080/api/client/login\" -Method POST -ContentType \"application/json\" -Body '{\"phone\":\"13812345678\"}' -UseBasicParsing; Write-Output $r.Content)"
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:8080/api/client/login\" -Method POST -ContentType \"application/json\" -Body '{\"phone\":\"13812345678\"}' -UseBasicParsing; Write-Output $r.Content)",
+      "PowerShell(git config *)"
     ]
   }
 }

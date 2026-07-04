@@ -1,5 +1,6 @@
 package com.cardealership;
 
+import com.cardealership.modules.crm.mapper.CrmCustomerMapper;
 import com.cardealership.modules.system.entity.SysUser;
 import com.cardealership.modules.system.entity.SysUserRole;
 import com.cardealership.modules.system.entity.SysRole;
@@ -30,13 +31,14 @@ class AuthServiceTest {
     @Mock private SysRoleMapper roleMapper;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
+    @Mock private CrmCustomerMapper customerMapper;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         authService = new AuthService(userMapper, userRoleMapper, roleMapper,
-            passwordEncoder, jwtTokenProvider);
+            passwordEncoder, jwtTokenProvider, customerMapper);
     }
 
     @Test
