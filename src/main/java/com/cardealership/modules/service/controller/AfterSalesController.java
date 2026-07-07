@@ -28,6 +28,14 @@ public class AfterSalesController {
     @PutMapping("/appointments/{id}")
     public Result<?> updateAppointment(@PathVariable Long id, @RequestBody SvcAppointment a) { a.setId(id); service.saveAppointment(a); return Result.success(); }
 
+    @RequestMapping(value = "/appointments/{id}/accept", method = {RequestMethod.PUT, RequestMethod.POST})
+    public Result<?> acceptAppointment(@PathVariable Long id) {
+        SvcAppointment a = new SvcAppointment();
+        a.setId(id); a.setStatus("ACCEPTED");
+        service.saveAppointment(a);
+        return Result.success();
+    }
+
     @DeleteMapping("/appointments/{id}")
     public Result<?> deleteAppointment(@PathVariable Long id) { service.deleteAppointment(id); return Result.success(); }
 

@@ -31,6 +31,13 @@ public class ClientController {
         return Result.success(clientService.checkPhoneExists(body.get("phone")) ? "ok" : "not_found");
     }
 
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> stats(@RequestParam(required = false) Long customerId,
+                                              @RequestParam(required = false) Long cid) {
+        Long id = customerId != null ? customerId : cid;
+        return Result.success(id != null ? clientService.getStats(id) : java.util.Map.of("orders",0,"appointments",0,"coupons",0,"points",0));
+    }
+
     // === 我的车辆 ===
     @GetMapping("/vehicles")
     public Result<List<CustomerVehicle>> myVehicles(@RequestParam Long customerId) {
@@ -74,6 +81,24 @@ public class ClientController {
     }
 
     // === 服务预约 ===
+    @PostMapping("/book-appointment")
+    public Result<?> bookAppointment(@RequestBody Map<String, Object> body) {
+        SvcAppointment appt = new SvcAppointment();
+        appt.setServiceType((String) body.get("serviceType"));
+        appt.setCustomerName((String) body.get("customerName"));
+        appt.setPhone((String) body.get("phone"));
+        appt.setVehicleInfo((String) body.get("vehicleInfo"));
+        appt.setDescription((String) body.get("description"));
+        String time = (String) body.get("appointmentTime");
+        if (time != null && !time.isEmpty()) {
+            try { appt.setAppointmentTime(java.time.LocalDateTime.parse(time)); } catch (Exception ignored) {}
+        }
+        Object cid = body.get("customerId");
+        Long customerId = cid instanceof Number ? ((Number) cid).longValue() : Long.parseLong(String.valueOf(cid));
+        clientService.createAppointment(customerId, appt);
+        return Result.success();
+    }
+
     @PostMapping("/appointments")
     public Result<?> createAppointment(@RequestParam Long customerId, @RequestBody SvcAppointment appt) {
         clientService.createAppointment(customerId, appt); return Result.success();
@@ -144,8 +169,9 @@ public class ClientController {
 
     // === 二手车估价 ===
     @PostMapping("/valuations")
-    public Result<?> requestValuation(@RequestParam Long customerId, @RequestBody ValuationRequest v) {
-        clientService.requestValuation(customerId, v); return Result.success();
+    public Result<Map<String, Object>> requestValuation(@RequestParam Long customerId, @RequestBody ValuationRequest v) {
+        clientService.requestValuation(customerId, v);
+        return Result.success(Map.of("estimatedPrice", v.getEstimatedPrice()));
     }
 
     @GetMapping("/valuations")

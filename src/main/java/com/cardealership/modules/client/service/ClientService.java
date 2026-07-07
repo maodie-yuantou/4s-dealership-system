@@ -157,14 +157,26 @@ public class ClientService {
         return result;
     }
 
+    public Map<String, Object> getStats(Long customerId) {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("orders", getMySaleOrders(customerId).size());
+        stats.put("appointments", getMyAppointments(customerId).size());
+        stats.put("coupons", getMyCoupons(customerId).size());
+        stats.put("points", getMyPoints(customerId).get("totalPoints"));
+        return stats;
+    }
+
     // ========== 服务预约 ==========
     @Transactional
     public void createAppointment(Long customerId, SvcAppointment appt) {
         CrmCustomer c = customerMapper.selectById(customerId);
         appt.setCustomerId(customerId);
         appt.setCustomerName(c != null ? c.getName() : "");
-        appt.setStatus("CONFIRMED");
+        appt.setStatus("PENDING");
         appt.setCreatedBy(customerId);
+        if (appt.getAppointmentTime() == null) {
+            appt.setAppointmentTime(java.time.LocalDateTime.now().plusDays(1));
+        }
         apptMapper.insert(appt);
     }
 
