@@ -5,9 +5,20 @@ const api = axios.create({ timeout: 15000 })
 
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  } else {
+    const m = (config.method || 'get').toLowerCase()
+    if ((m === 'post' || m === 'put' || m === 'delete' || m === 'patch') && config.url &&
+        !config.url.includes('/api/auth/') &&
+        !config.url.includes('/api/client/login') &&
+        !config.url.includes('/api/client/check-phone')) {
+      window.location.href = '/login'
+      return Promise.reject(new Error('请先登录'))
+    }
+  }
   return config
-})
+}, err => Promise.reject(err))
 
 api.interceptors.response.use(
   res => res,
