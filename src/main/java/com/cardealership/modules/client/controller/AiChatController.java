@@ -5,8 +5,11 @@ import com.cardealership.modules.client.entity.AiChatHistory;
 import com.cardealership.modules.client.entity.CsTicket;
 import com.cardealership.modules.client.service.AiChatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +23,37 @@ public class AiChatController {
      * AI 聊天 — 核心接口
      * body: { "sessionId": "xxx", "customerId": 1, "message": "保养多少钱" }
      */
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@RequestBody Map<String, Object> body) {
+        String sessionId = (String) body.getOrDefault("sessionId", "sess_" + System.currentTimeMillis());
+        Long customerId = body.get("customerId") != null ? Long.valueOf(body.get("customerId").toString()) : null;
+        String message = (String) body.get("message");
+        SseEmitter emitter = new SseEmitter(60000L);
+
+        new Thread(() -> {
+            try {
+                Map<String, Object> result = aiChatService.chat(sessionId, customerId, message);
+                String reply = (String) result.get("reply");
+                Boolean transfer = (Boolean) result.get("transferToHuman");
+                String ticketNo = (String) result.get("ticketNo");
+                // 逐字流式输出
+                for (int i = 0; i < reply.length(); i++) {
+                    emitter.send(SseEmitter.event().data(reply.substring(i, Math.min(i + 3, reply.length()))));
+                    Thread.sleep(30);
+                }
+                // 发送最终事件
+                emitter.send(SseEmitter.event().name("done").data(
+                    transfer ? "TRANSFER:" + ticketNo : "OK"));
+                emitter.complete();
+            } catch (Exception e) {
+                try { emitter.send(SseEmitter.event().name("error").data(e.getMessage())); } catch (IOException ignored) {}
+                emitter.completeWithError(e);
+            }
+        }).start();
+
+        return emitter;
+    }
+
     @PostMapping
     public Result<Map<String, Object>> chat(@RequestBody Map<String, Object> body) {
         String sessionId = (String) body.getOrDefault("sessionId", "sess_" + System.currentTimeMillis());

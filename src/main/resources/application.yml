@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8080
   servlet:
     encoding:
@@ -40,6 +40,10 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+jwt:
+  access-token-expiration-ms: 1800000
+  refresh-token-expiration-ms: 604800000
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -63,3 +67,11 @@ deepseek:
   api-key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
   api-url: https://api.deepseek.com/v1/chat/completions
   model: deepseek-chat
+
+pgvector:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cardealership_vectors
+    username: vectoruser
+    password: vectorpass
+    driver-class-name: org.postgresql.Driver
+

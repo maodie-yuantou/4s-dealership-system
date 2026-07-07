@@ -1,0 +1,13 @@
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/audi-a6/400/300' WHERE id=1;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/bmw-3/400/300' WHERE id=2;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/benz-c/400/300' WHERE id=3;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/tesla-y/400/300' WHERE id=4;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/byd-han/400/300' WHERE id=5;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/toyota-camry/400/300' WHERE id=6;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/honda-crv/400/300' WHERE id=7;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/vw-tiguan/400/300' WHERE id=8;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/changan-sl03/400/300' WHERE id=9;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/lixiang-l8/400/300' WHERE id=10;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/volvo-xc60/400/300' WHERE id=11;
+UPDATE stock_vehicle SET image_url = 'https://picsum.photos/seed/buick-gl8/400/300' WHERE id=12;
+SELECT id, brand, image_url FROM stock_vehicle;

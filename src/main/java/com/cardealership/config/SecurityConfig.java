@@ -1,8 +1,10 @@
 package com.cardealership.config;
 
+import com.cardealership.common.filter.TraceIdFilter;
 import com.cardealership.security.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -37,7 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/doc.html", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/verify-identity", "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/verify-identity", "/api/auth/reset-password", "/api/auth/refresh").permitAll()
                         .requestMatchers("/api/client/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/stock/vehicles", "/api/stock/vehicles/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
@@ -55,6 +57,15 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<TraceIdFilter> traceIdFilterRegistration() {
+        FilterRegistrationBean<TraceIdFilter> reg = new FilterRegistrationBean<>();
+        reg.setFilter(new TraceIdFilter());
+        reg.addUrlPatterns("/*");
+        reg.setOrder(0);
+        return reg;
     }
 
     @Bean

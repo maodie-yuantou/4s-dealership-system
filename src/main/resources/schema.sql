@@ -394,6 +394,7 @@ CREATE TABLE IF NOT EXISTS stock_vehicle (
     vehicle_type VARCHAR(30) DEFAULT '',
     color VARCHAR(30) DEFAULT '',
     config_detail VARCHAR(200) DEFAULT '',
+    image_url VARCHAR(500) DEFAULT '' COMMENT '车辆图片URL',
     production_date DATE,
     guide_price DECIMAL(12,2) DEFAULT 0,
     cost_price DECIMAL(12,2) DEFAULT 0 COMMENT '成本价',

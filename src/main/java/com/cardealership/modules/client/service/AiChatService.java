@@ -5,10 +5,12 @@ import com.cardealership.modules.client.entity.*;
 import com.cardealership.modules.client.mapper.*;
 import com.cardealership.modules.crm.entity.CrmCustomer;
 import com.cardealership.modules.crm.mapper.CrmCustomerMapper;
+import com.cardealership.service.EmbeddingService;
+import com.cardealership.service.VectorSearchService;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.memory.ChatMemory;
-import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +22,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
+
     private final KbFaqMapper faqMapper;
     private final AiChatHistoryMapper chatHistoryMapper;
     private final CsTicketMapper ticketMapper;
     private final CrmCustomerMapper customerMapper;
+    private final EmbeddingService embeddingService;
+    private final VectorSearchService vectorSearchService;
 
     private static final String DEEPSEEK_API_KEY = System.getenv("DEEPSEEK_API_KEY") != null
         ? System.getenv("DEEPSEEK_API_KEY")
@@ -98,6 +104,16 @@ public class AiChatService {
      * 知识库搜索 — 关键词匹配 + 语义相似
      */
     private String searchKnowledgeBase(String question) {
+        // 1. 向量语义检索
+        try {
+            float[] qv = embeddingService.embed(question);
+            List<VectorSearchService.FaqSearchResult> results = vectorSearchService.searchSimilar(qv, 3);
+            if (!results.isEmpty() && results.get(0).getSimilarity() > 0.6) {
+                log.debug("Vector search matched FAQ id={}", results.get(0).getId());
+                return results.get(0).getAnswer();
+            }
+        } catch (Exception e) { log.debug("Vector search fallback: {}", e.getMessage()); }
+
         List<KbFaq> allFaqs = faqMapper.selectList(
                 new LambdaQueryWrapper<KbFaq>().eq(KbFaq::getStatus, 1));
 

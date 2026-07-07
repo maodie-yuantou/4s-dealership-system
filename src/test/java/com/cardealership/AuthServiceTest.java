@@ -9,6 +9,7 @@ import com.cardealership.modules.system.mapper.SysUserRoleMapper;
 import com.cardealership.modules.system.mapper.SysRoleMapper;
 import com.cardealership.modules.system.service.AuthService;
 import com.cardealership.security.JwtTokenProvider;
+import com.cardealership.service.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,14 +32,15 @@ class AuthServiceTest {
     @Mock private SysRoleMapper roleMapper;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
+    @Mock private RefreshTokenService refreshTokenService;
     @Mock private CrmCustomerMapper customerMapper;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userMapper, userRoleMapper, roleMapper,
-            passwordEncoder, jwtTokenProvider, customerMapper);
+        authService = new AuthService(userMapper, userRoleMapper, roleMapper, passwordEncoder,
+            jwtTokenProvider, refreshTokenService, customerMapper);
     }
 
     @Test
@@ -62,15 +64,17 @@ class AuthServiceTest {
         role.setRoleCode("ADMIN");
         when(roleMapper.selectBatchIds(any())).thenReturn(List.of(role));
 
-        when(jwtTokenProvider.generateToken(eq(1L), eq("admin"), any()))
-            .thenReturn("test.jwt.token");
+        when(jwtTokenProvider.generateAccessToken(eq(1L), eq("admin"), any()))
+            .thenReturn("test.access.jwt");
+        when(jwtTokenProvider.generateRefreshToken(eq(1L), eq("admin")))
+            .thenReturn("test.refresh.jwt");
 
         Map<String, Object> result = authService.login("admin", "admin123");
 
-        assertEquals("test.jwt.token", result.get("token"));
+        assertEquals("test.access.jwt", result.get("accessToken"));
+        assertEquals("test.refresh.jwt", result.get("refreshToken"));
         assertEquals("admin", result.get("username"));
         assertEquals("管理员", result.get("realName"));
-        assertTrue(((List<?>) result.get("roles")).contains("ADMIN"));
     }
 
     @Test
@@ -83,16 +87,64 @@ class AuthServiceTest {
         when(passwordEncoder.matches("wrong", "encoded_pw")).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class,
-            () -> authService.login("admin", "wrong"),
-            "用户名或密码错误");
+            () -> authService.login("admin", "wrong"));
     }
 
     @Test
     void shouldRejectNonexistentUser() {
         when(userMapper.selectOne(any())).thenReturn(null);
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.login("nobody", "whatever"));
+    }
+
+    // ========== refreshAccessToken ==========
+    @Test
+    void shouldRefreshTokenSuccessfully() {
+        when(refreshTokenService.validate("old.refresh.token")).thenReturn(1L);
+
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setStatus(1);
+        when(userMapper.selectById(1L)).thenReturn(user);
+
+        SysUserRole ur = new SysUserRole();
+        ur.setUserId(1L);
+        ur.setRoleId(1L);
+        when(userRoleMapper.selectList(any())).thenReturn(List.of(ur));
+
+        SysRole role = new SysRole();
+        role.setId(1L);
+        role.setRoleCode("ADMIN");
+        when(roleMapper.selectBatchIds(any())).thenReturn(List.of(role));
+
+        when(jwtTokenProvider.generateAccessToken(eq(1L), eq("admin"), any())).thenReturn("new.access.jwt");
+        when(jwtTokenProvider.generateRefreshToken(eq(1L), eq("admin"))).thenReturn("new.refresh.jwt");
+
+        Map<String, Object> result = authService.refreshAccessToken("old.refresh.token");
+
+        assertEquals("new.access.jwt", result.get("accessToken"));
+        assertEquals("new.refresh.jwt", result.get("refreshToken"));
+        verify(refreshTokenService).delete("old.refresh.token");
+        verify(refreshTokenService).store("new.refresh.jwt", 1L);
+    }
+
+    @Test
+    void shouldRejectInvalidRefreshToken() {
+        when(refreshTokenService.validate("invalid.token")).thenReturn(null);
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.refreshAccessToken("invalid.token"));
+    }
+
+    @Test
+    void shouldRejectDisabledUserRefreshToken() {
+        when(refreshTokenService.validate("valid.token")).thenReturn(1L);
+        SysUser user = new SysUser();
+        user.setId(1L);
+        user.setStatus(0);
+        when(userMapper.selectById(1L)).thenReturn(user);
 
         assertThrows(IllegalArgumentException.class,
-            () -> authService.login("nobody", "whatever"),
-            "用户名或密码错误");
+            () -> authService.refreshAccessToken("valid.token"));
     }
 }

@@ -11,6 +11,7 @@ import com.cardealership.modules.system.mapper.SysUserRoleMapper;
 import com.cardealership.modules.system.mapper.SysRoleMapper;
 import com.cardealership.security.JwtTokenProvider;
 import com.cardealership.security.UserDetailsImpl;
+import com.cardealership.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,55 +29,56 @@ public class AuthService {
     private final SysRoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
+    private final CrmCustomerMapper customerMapper;
 
     public Map<String, Object> login(String username, String password) {
         SysUser user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
-        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(password, user.getPassword()))
             throw new IllegalArgumentException("用户名或密码错误");
-        }
-        if (user.getStatus() != null && user.getStatus() == 0) {
+        if (user.getStatus() != null && user.getStatus() == 0)
             throw new IllegalArgumentException("账号已被禁用");
-        }
 
         List<String> roles = getUserRoles(user.getId());
-        String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername(), roles);
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), roles);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getUsername());
+        refreshTokenService.store(refreshToken, user.getId());
 
         Map<String, Object> result = new HashMap<>();
-        result.put("token", token);
+        result.put("accessToken", accessToken);
+        result.put("token", accessToken);
+        result.put("refreshToken", refreshToken);
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("realName", user.getRealName());
         result.put("phone", user.getPhone());
         result.put("roles", roles);
+        CrmCustomer c = customerMapper.selectOne(new LambdaQueryWrapper<CrmCustomer>().eq(CrmCustomer::getPhone, user.getPhone()));
+        if (c != null) result.put("customerId", c.getId());
         return result;
     }
 
-    private final CrmCustomerMapper customerMapper;
-
     public Map<String, Object> register(String username, String password, String realName, String phone) {
-        SysUser exist = userMapper.selectOne(
-            new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
-        if (exist != null) throw new IllegalArgumentException("用户名已存在");
+        if (userMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username)) != null)
+            throw new IllegalArgumentException("用户名已存在");
 
         SysUser user = new SysUser();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setRealName(realName);
         user.setPhone(phone);
-        user.setDeptId(null);
         user.setStatus(1);
         userMapper.insert(user);
 
-        SysUserRole userRole = new SysUserRole();
-        userRole.setUserId(user.getId());
-        userRole.setRoleId(3L);
-        userRoleMapper.insert(userRole);
+        SysUserRole ur = new SysUserRole();
+        ur.setUserId(user.getId());
+        ur.setRoleId(3L);
+        userRoleMapper.insert(ur);
 
-        // 同时创建 CRM 客户记录，使手机号可用于手机号登录
+        CrmCustomer customer = null;
         if (phone != null && !phone.isEmpty()) {
-            CrmCustomer customer = customerMapper.selectOne(
-                new LambdaQueryWrapper<CrmCustomer>().eq(CrmCustomer::getPhone, phone));
+            customer = customerMapper.selectOne(new LambdaQueryWrapper<CrmCustomer>().eq(CrmCustomer::getPhone, phone));
             if (customer == null) {
                 customer = new CrmCustomer();
                 customer.setName(realName != null ? realName : username);
@@ -88,35 +90,53 @@ public class AuthService {
         }
 
         List<String> roles = getUserRoles(user.getId());
-        String token = jwtTokenProvider.generateToken(user.getId(), user.getUsername(), roles);
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getUsername(), roles);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getUsername());
+        refreshTokenService.store(refreshToken, user.getId());
 
         Map<String, Object> result = new HashMap<>();
-        result.put("token", token);
+        result.put("accessToken", accessToken);
+        result.put("refreshToken", refreshToken);
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("realName", user.getRealName());
         result.put("phone", phone);
         result.put("roles", roles);
+        if (customer != null) result.put("customerId", customer.getId());
+        return result;
+    }
+
+    public Map<String, Object> refreshAccessToken(String refreshToken) {
+        Long userId = refreshTokenService.validate(refreshToken);
+        if (userId == null) throw new IllegalArgumentException("Refresh token 无效或已过期");
+        SysUser user = userMapper.selectById(userId);
+        if (user == null || (user.getStatus() != null && user.getStatus() == 0))
+            throw new IllegalArgumentException("用户不存在或已禁用");
+        refreshTokenService.delete(refreshToken);
+        List<String> roles = getUserRoles(userId);
+        String newAccessToken = jwtTokenProvider.generateAccessToken(userId, user.getUsername(), roles);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(userId, user.getUsername());
+        refreshTokenService.store(newRefreshToken, userId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("accessToken", newAccessToken);
+        result.put("refreshToken", newRefreshToken);
         return result;
     }
 
     public void verifyIdentity(String username, String realName) {
-        SysUser user = userMapper.selectOne(
-            new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
+        SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
         if (user == null) throw new IllegalArgumentException("用户不存在");
         if (realName == null || !realName.equals(user.getRealName()))
-            throw new IllegalArgumentException("真实姓名验证失败，请重新输入");
+            throw new IllegalArgumentException("真实姓名验证失败");
     }
 
     public void resetPassword(String username, String realName, String newPassword) {
-        SysUser user = userMapper.selectOne(
-            new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
+        SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
         if (user == null) throw new IllegalArgumentException("用户不存在");
         if (realName == null || !realName.equals(user.getRealName()))
-            throw new IllegalArgumentException("真实姓名验证失败，请重新输入");
+            throw new IllegalArgumentException("真实姓名验证失败");
         if (newPassword == null || newPassword.length() < 6)
             throw new IllegalArgumentException("密码不能少于6位");
-
         user.setPassword(passwordEncoder.encode(newPassword));
         userMapper.updateById(user);
     }
@@ -133,24 +153,23 @@ public class AuthService {
 
     private void syncCrmCustomer(SysUser user) {
         if (user.getPhone() == null || user.getPhone().isEmpty()) return;
-        CrmCustomer customer = customerMapper.selectOne(
-            new LambdaQueryWrapper<CrmCustomer>().eq(CrmCustomer::getPhone, user.getPhone()));
-        if (customer == null) {
-            customer = new CrmCustomer();
-            customer.setName(user.getRealName() != null ? user.getRealName() : user.getUsername());
-            customer.setPhone(user.getPhone());
-            customer.setCustomerType("OWNER");
-            customer.setGrade("C");
-            customerMapper.insert(customer);
+        CrmCustomer c = customerMapper.selectOne(new LambdaQueryWrapper<CrmCustomer>().eq(CrmCustomer::getPhone, user.getPhone()));
+        if (c == null) {
+            c = new CrmCustomer();
+            c.setName(user.getRealName() != null ? user.getRealName() : user.getUsername());
+            c.setPhone(user.getPhone());
+            c.setCustomerType("OWNER");
+            c.setGrade("C");
+            customerMapper.insert(c);
         } else {
-            customer.setName(user.getRealName() != null ? user.getRealName() : user.getUsername());
-            customerMapper.updateById(customer);
+            c.setName(user.getRealName() != null ? user.getRealName() : user.getUsername());
+            customerMapper.updateById(c);
         }
     }
 
     public void changePassword(String oldPassword, String newPassword) {
         SysUser user = getCurrentUser();
-        if (oldPassword == null || !passwordEncoder.matches(oldPassword, user.getPassword()))
+        if (!passwordEncoder.matches(oldPassword, user.getPassword()))
             throw new IllegalArgumentException("原密码输入错误");
         if (newPassword == null || newPassword.length() < 6)
             throw new IllegalArgumentException("密码不能少于6位");
@@ -180,9 +199,8 @@ public class AuthService {
     public List<String> getUserRoles(Long userId) {
         List<SysUserRole> urList = userRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        if (urList.isEmpty()) return List.of();
         List<Long> roleIds = urList.stream().map(SysUserRole::getRoleId).toList();
-        if (roleIds.isEmpty()) return List.of();
-        return roleMapper.selectBatchIds(roleIds).stream()
-                .map(SysRole::getRoleCode).toList();
+        return roleMapper.selectBatchIds(roleIds).stream().map(SysRole::getRoleCode).toList();
     }
 }

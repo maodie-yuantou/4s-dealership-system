@@ -34,9 +34,19 @@
 </template>
 <script setup>
 import { ref } from 'vue'; import { useRouter } from 'vue-router'; import { useUserStore } from '../stores/user'; import { showToast } from 'vant'; import api from '../api'
-const router = useRouter(); const user = useUserStore(); const tab = ref(0); const phone = ref(''); const smsCode = ref(''); const username = ref(''); const password = ref(''); const loading = ref(false); const countdown = ref(0)
+const router = useRouter(); const user = useUserStore(); const tab = ref(1); const phone = ref(''); const smsCode = ref(''); const username = ref(''); const password = ref(''); const loading = ref(false); const countdown = ref(0)
 async function sendSms(){if(phone.value.length<11){showToast('请输入正确手机号');return};try{const r=await api.post('/api/client/check-phone',{phone:phone.value});if(r.data.data!=='ok'){showToast('该用户不存在');return}}catch(e){showToast('该用户不存在');return};countdown.value=60;const t=setInterval(()=>{countdown.value--;if(countdown.value<=0)clearInterval(t)},1000);showToast('验证码已发送(模拟:123456)')}
-async function phoneLogin(){if(!phone.value||!smsCode.value){showToast('请输入手机号和验证码');return};loading.value=true;try{await user.login(phone.value);showToast('登录成功');router.push('/')}catch(e){showToast(e.response?.data?.message||'登录失败')}finally{loading.value=false}}
+async function phoneLogin(){
+  if(!phone.value||!smsCode.value){showToast('请输入手机号和验证码');return}
+  loading.value=true
+  try{
+    const r=await api.post('/api/client/login',{phone:phone.value})
+    const d=r.data.data
+    localStorage.setItem('cid',d.customerId);localStorage.setItem('cname',d.name);localStorage.setItem('cphone',phone.value)
+    if(d.token)localStorage.setItem('token',d.token)
+    showToast('登录成功');router.push('/')
+  }catch(e){showToast(e.response?.data?.message||'登录失败')}finally{loading.value=false}
+}
 async function passwordLogin(){
   if(!username.value||!password.value){showToast('请输入用户名和密码');return};loading.value=true
   try{const r=await api.post('/api/auth/login',{username:username.value,password:password.value});const d=r.data.data;localStorage.setItem('token',d.token);localStorage.setItem('cid',d.userId);localStorage.setItem('cname',d.realName||d.username);localStorage.setItem('cphone',d.phone||'');showToast('登录成功');router.push('/')}catch(e){showToast(e.response?.data?.message||'登录失败')}finally{loading.value=false}

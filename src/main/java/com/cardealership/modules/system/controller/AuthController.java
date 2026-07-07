@@ -36,6 +36,11 @@ public class AuthController {
         return Result.success(authService.register(username, password, realName, phone));
     }
 
+    @PostMapping("/refresh")
+    public Result<Map<String, Object>> refresh(@RequestBody Map<String, String> body) {
+        return Result.success(authService.refreshAccessToken(body.get("refreshToken")));
+    }
+
     @PostMapping("/verify-identity")
     public Result<String> verifyIdentity(@RequestBody Map<String, String> body) {
         String username = body.get("username");
