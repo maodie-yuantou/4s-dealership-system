@@ -6,7 +6,7 @@
 
 ## 架构图
 
-```
+```mermaid
 graph TB
     subgraph 前端
         Admin[Admin SPA\nVue 3 + TypeScript + Element Plus\nVite + Pinia + ECharts]
